@@ -99,7 +99,7 @@ EXTERNAL_OBJECTS = $(EXTERNAL_SOURCES:.h=-$(BINARY).o)
 # ==================================================
 # CXXFLAGS setup (and input validation)
 
-CXXFLAGS = -std=c++14 -fvisibility=hidden \
+CXXFLAGS += -std=c++14 -fvisibility=hidden \
            -Wall -Wextra -Wpedantic -Werror -Werror=shadow -Wdouble-promotion
 
 # Validate that the APP parameter is a supported value, and patch CXXFLAGS
