@@ -128,7 +128,7 @@ endif
 
 # Validate that the BUILD parameter is a supported value, and patch CXXFLAGS
 ifeq ($(BUILD),release)
-CXXFLAGS += -O3 -DNDEBUG -flto
+CXXFLAGS += -O3 -DNDEBUG
 else
 ifeq ($(BUILD),profile)
 CXXFLAGS += -O2 -g
@@ -181,8 +181,8 @@ $(BINARY): $(EXTERNAL_OBJECTS) $(CLI_OBJECTS)
 	$(CXX) -o $@ $^ $(CXXFLAGS) -lpthread
 	@echo "[Link] $@ (using $(VEC) $(BUILD))"
 
-$(LIBRARY).a: $(EXTERNAL_OBJECTS) $(LIB_OBJECTS)
-	$(AR) rcs $@ $^
+$(LIBRARY).a: $(LIBRARY.so) $(EXTERNAL_OBJECTS) $(LIB_OBJECTS)
+	$(AR) rcs $@ $<
 	@echo "[Link] $@ (using $(VEC) $(BUILD))"
 
 $(LIBRARY).so: $(EXTERNAL_OBJECTS) $(LIB_OBJECTS)
