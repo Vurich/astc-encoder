@@ -41,10 +41,14 @@ VEC ?= avx2
 #   * debug   - build an unoptimized build with symbols
 BUILD ?= release
 
+STATIC ?= no
+
+AR ?= ar
+
 # ==================================================
 # File listings
 
-SOURCES = \
+LIB_SOURCES = \
     astcenc_averages_and_directions.cpp \
     astcenc_block_sizes2.cpp \
     astcenc_color_quantize.cpp \
@@ -68,7 +72,8 @@ SOURCES = \
     astcenc_quantization.cpp \
     astcenc_symbolic_physical.cpp \
     astcenc_weight_align.cpp \
-    astcenc_weight_quant_xfer_tables.cpp \
+    astcenc_weight_quant_xfer_tables.cpp
+CLI_SOURCES = \
     astcenccli_error_metrics.cpp \
     astcenccli_image.cpp \
     astcenccli_image_load_store.cpp \
@@ -90,11 +95,20 @@ HEADERS = \
     stb_image_write.h \
     tinyexr.h
 
+ifeq ($(STATIC),yes)
+EXT = .a
+CXXFLAGS += -static
+else
+EXT = .o
+endif
+
 BINARY = $(APP)-$(VEC)
+LIBRARY = $(APP)-$(VEC)$(EXT)
 
-OBJECTS = $(SOURCES:.cpp=-$(BINARY).o)
+LIB_OBJECTS = $(LIB_SOURCES:.cpp=-$(BINARY)$(EXT))
+CLI_OBJECTS = $(CLI_SOURCES:.cpp=-$(BINARY)$(EXT))
 
-EXTERNAL_OBJECTS = $(EXTERNAL_SOURCES:.h=-$(BINARY).o)
+EXTERNAL_OBJECTS = $(EXTERNAL_SOURCES:.h=-$(BINARY)$(EXT))
 
 # ==================================================
 # CXXFLAGS setup (and input validation)
@@ -164,36 +178,46 @@ export BUILD
 # ==================================================
 # Build rules for the command line wrapper
 
-$(BINARY): $(EXTERNAL_OBJECTS) $(OBJECTS)
+$(BINARY): $(EXTERNAL_OBJECTS) $(CLI_OBJECTS)
 	@$(CXX) -o $@ $^ $(CXXFLAGS) -lpthread
+	@echo "[Link] $@ (using $(VEC) $(BUILD))"
+
+$(LIBRARY): $(EXTERNAL_OBJECTS) $(OBJECTS)
+	@$(AR) rcs $@ $^
 	@echo "[Link] $@ (using $(VEC) $(BUILD))"
 
 # Note: ensure NDEBUG is undefined; all three libraries are weak at runtime
 # handling of corrupt files, relying on asserts to handle bad file input.
 # Compiling with NDEBUG is a potential security risk.
-stb_image-$(BINARY).o: stb_image.h
+stb_image-$(BINARY)$(EXT): stb_image.h
 	@$(CXX) -c -x c++ -o $@ $< $(CXXFLAGS_EXTERNAL) -DSTB_IMAGE_IMPLEMENTATION \
 		-DSTBI_NO_PSD -DSTBI_NO_GIF -DSTBI_NO_PIC -DSTBI_NO_PNM -UNDEBUG
 	@echo "[C++] $<"
 
-stb_image_write-$(BINARY).o: stb_image_write.h
+stb_image_write-$(BINARY)$(EXT): stb_image_write.h
 	@$(CXX) -c -x c++ -o $@ $< $(CXXFLAGS_EXTERNAL) -DSTB_IMAGE_WRITE_IMPLEMENTATION \
 		-UNDEBUG
 	@echo "[C++] $<"
 
-tinyexr-$(BINARY).o: tinyexr.h
+tinyexr-$(BINARY)$(EXT): tinyexr.h
 	@$(CXX) -c -x c++ -o $@ $< $(CXXFLAGS) -DTINYEXR_IMPLEMENTATION -UNDEBUG
 	@echo "[C++] $<"
 
-$(OBJECTS): %-$(BINARY).o: %.cpp $(HEADERS)
+$(CLI_OBJECTS): %-$(BINARY)$(EXT): %.cpp $(HEADERS) $(LIB_OBJECTS)
+	@$(CXX) -c -o $@ $(abspath $<) $(CXXFLAGS)
+	@echo "[C++] $<"
+
+$(LIB_OBJECTS): %-$(BINARY)$(EXT): %.cpp $(HEADERS)
 	@$(CXX) -c -o $@ $(abspath $<) $(CXXFLAGS)
 	@echo "[C++] $<"
 
 # ==================================================
 # Generic utility rules
 
+library: $(LIBRARY)
+
 clean:
-	@rm -f *-$(BINARY).o
+	@rm -f *-$(BINARY)$(EXT)
 	@rm -f *-$(BINARY).obj
 	@rm -f $(BINARY)
 	@rm -f $(BINARY).exe
