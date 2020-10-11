@@ -177,16 +177,24 @@ export BUILD
 # ==================================================
 # Build rules for the command line wrapper
 
-$(BINARY): $(EXTERNAL_OBJECTS) $(CLI_OBJECTS)
-	$(CXX) -o $@ $^ $(CXXFLAGS) -lpthread
-	@echo "[Link] $@ (using $(VEC) $(BUILD))"
+$(CLI_OBJECTS): %-$(BINARY).o: %.cpp $(HEADERS) $(LIB_OBJECTS)
+	$(CXX) -c -o $@ $(abspath $<) $(CXXFLAGS)
+	@echo "[C++] $<"
 
-$(LIBRARY).a: $(LIBRARY.so) $(EXTERNAL_OBJECTS) $(LIB_OBJECTS)
-	$(AR) rcs $@ $<
+$(LIB_OBJECTS): %-$(BINARY).o: %.cpp $(HEADERS)
+	$(CXX) -c -o $@ $(abspath $<) $(CXXFLAGS)
+	@echo "[C++] $<"
+
+$(BINARY): $(EXTERNAL_OBJECTS) $(CLI_OBJECTS)
+	$(CXX) -o $@ $^ -flto $(CXXFLAGS) -lpthread
 	@echo "[Link] $@ (using $(VEC) $(BUILD))"
 
 $(LIBRARY).so: $(EXTERNAL_OBJECTS) $(LIB_OBJECTS)
 	$(CXX) -shared -o $@ $^ $(CXXFLAGS) -lpthread
+	@echo "[Link] $@ (using $(VEC) $(BUILD))"
+
+$(LIBRARY).a: $(LIBRARY).so $(EXTERNAL_OBJECTS) $(LIB_OBJECTS)
+	$(AR) rcs $@ $<
 	@echo "[Link] $@ (using $(VEC) $(BUILD))"
 
 # Note: ensure NDEBUG is undefined; all three libraries are weak at runtime
@@ -204,14 +212,6 @@ stb_image_write-$(BINARY).o: stb_image_write.h
 
 tinyexr-$(BINARY).o: tinyexr.h
 	$(CXX) -c -x c++ -o $@ $< $(CXXFLAGS) -DTINYEXR_IMPLEMENTATION -UNDEBUG
-	@echo "[C++] $<"
-
-$(CLI_OBJECTS): %-$(BINARY).o: %.cpp $(HEADERS) $(LIB_OBJECTS)
-	$(CXX) -c -o $@ $(abspath $<) $(CXXFLAGS)
-	@echo "[C++] $<"
-
-$(LIB_OBJECTS): %-$(BINARY).o: %.cpp $(HEADERS)
-	$(CXX) -c -o $@ $(abspath $<) $(CXXFLAGS)
 	@echo "[C++] $<"
 
 # ==================================================
