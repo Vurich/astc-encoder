@@ -155,6 +155,10 @@
 #include <cstddef>
 #include <cstdint>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ============================================================================
     Data declarations
 ============================================================================ */
@@ -495,7 +499,7 @@ struct astcenc_image {
  * @return ASTCENC_SUCCESS on success, or an error if the inputs are invalid
  * either individually, or in combination.
  */
-astcenc_error astcenc_config_init(
+__attribute__((visibility("default"))) astcenc_error astcenc_config_init(
 	astcenc_profile profile,
 	unsigned int block_x,
 	unsigned int block_y,
@@ -525,7 +529,7 @@ astcenc_error astcenc_config_init(
  *
  * @return ASTCENC_SUCCESS on success, or an error if context creation failed.
  */
-astcenc_error astcenc_context_alloc(
+__attribute__((visibility("default"))) astcenc_error astcenc_context_alloc(
 	const astcenc_config& config,
 	unsigned int thread_count,
 	astcenc_context** context);
@@ -548,7 +552,7 @@ astcenc_error astcenc_context_alloc(
  *
  * @return ASTCENC_SUCCESS on success, or an error if compression failed.
  */
-astcenc_error astcenc_compress_image(
+__attribute__((visibility("default"))) astcenc_error astcenc_compress_image(
 	astcenc_context* context,
 	astcenc_image& image,
 	astcenc_swizzle swizzle,
@@ -568,7 +572,7 @@ astcenc_error astcenc_compress_image(
  *
  * @return ASTCENC_SUCCESS on success, or an error if reset failed.
  */
-astcenc_error astcenc_compress_reset(
+__attribute__((visibility("default"))) astcenc_error astcenc_compress_reset(
 	astcenc_context* context);
 
 /**
@@ -582,7 +586,7 @@ astcenc_error astcenc_compress_reset(
  *
  * @return ASTCENC_SUCCESS on success, or an error if decompression failed.
  */
-astcenc_error astcenc_decompress_image(
+__attribute__((visibility("default"))) astcenc_error astcenc_decompress_image(
 	astcenc_context* context,
 	const uint8_t* data,
 	size_t data_len,
@@ -594,7 +598,7 @@ astcenc_error astcenc_decompress_image(
  *
  * @param context   The codec context.
  */
-void astcenc_context_free(
+__attribute__((visibility("default"))) void astcenc_context_free(
 	astcenc_context* context);
 
 /**
@@ -604,7 +608,10 @@ void astcenc_context_free(
  *
  * @return A human readable nul-terminated string.
  */
-const char* astcenc_get_error_string(
+__attribute__((visibility("default"))) const char* astcenc_get_error_string(
 	astcenc_error status);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

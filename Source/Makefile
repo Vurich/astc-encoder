@@ -95,25 +95,24 @@ HEADERS = \
     stb_image_write.h \
     tinyexr.h
 
+BINARY = $(APP)-$(VEC)
+LIBRARY = lib$(BINARY)
+
 ifeq ($(STATIC),yes)
 EXT = .a
-CXXFLAGS += -static
 else
-EXT = .o
+EXT = .so
 endif
 
-BINARY = $(APP)-$(VEC)
-LIBRARY = $(APP)-$(VEC)$(EXT)
+LIB_OBJECTS = $(LIB_SOURCES:.cpp=-$(BINARY).o)
+CLI_OBJECTS = $(CLI_SOURCES:.cpp=-$(BINARY).o)
 
-LIB_OBJECTS = $(LIB_SOURCES:.cpp=-$(BINARY)$(EXT))
-CLI_OBJECTS = $(CLI_SOURCES:.cpp=-$(BINARY)$(EXT))
-
-EXTERNAL_OBJECTS = $(EXTERNAL_SOURCES:.h=-$(BINARY)$(EXT))
+EXTERNAL_OBJECTS = $(EXTERNAL_SOURCES:.h=-$(BINARY).o)
 
 # ==================================================
 # CXXFLAGS setup (and input validation)
 
-CXXFLAGS += -std=c++14 -fvisibility=hidden \
+CXXFLAGS += -fPIC -std=c++14 \
            -Wall -Wextra -Wpedantic -Werror -Werror=shadow -Wdouble-promotion
 
 # Validate that the APP parameter is a supported value, and patch CXXFLAGS
@@ -179,45 +178,51 @@ export BUILD
 # Build rules for the command line wrapper
 
 $(BINARY): $(EXTERNAL_OBJECTS) $(CLI_OBJECTS)
-	@$(CXX) -o $@ $^ $(CXXFLAGS) -lpthread
+	$(CXX) -o $@ $^ $(CXXFLAGS) -lpthread
 	@echo "[Link] $@ (using $(VEC) $(BUILD))"
 
-$(LIBRARY): $(EXTERNAL_OBJECTS) $(OBJECTS)
-	@$(AR) rcs $@ $^
+$(LIBRARY).a: $(EXTERNAL_OBJECTS) $(LIB_OBJECTS)
+	$(AR) rcs $@ $^
+	@echo "[Link] $@ (using $(VEC) $(BUILD))"
+
+$(LIBRARY).so: $(EXTERNAL_OBJECTS) $(LIB_OBJECTS)
+	$(CXX) -shared -o $@ $^ $(CXXFLAGS) -lpthread
 	@echo "[Link] $@ (using $(VEC) $(BUILD))"
 
 # Note: ensure NDEBUG is undefined; all three libraries are weak at runtime
 # handling of corrupt files, relying on asserts to handle bad file input.
 # Compiling with NDEBUG is a potential security risk.
-stb_image-$(BINARY)$(EXT): stb_image.h
-	@$(CXX) -c -x c++ -o $@ $< $(CXXFLAGS_EXTERNAL) -DSTB_IMAGE_IMPLEMENTATION \
-		-DSTBI_NO_PSD -DSTBI_NO_GIF -DSTBI_NO_PIC -DSTBI_NO_PNM -UNDEBUG
+stb_image-$(BINARY).o: stb_image.h
+	$(CXX) -c -x c++ -o $@ $< $(CXXFLAGS_EXTERNAL) -DSTB_IMAGE_IMPLEMENTATION \
+		-DSTBI_NO_PSD -DSTBI_NO_GIF -DSTBI_NO_PNM -UNDEBUG
 	@echo "[C++] $<"
 
-stb_image_write-$(BINARY)$(EXT): stb_image_write.h
-	@$(CXX) -c -x c++ -o $@ $< $(CXXFLAGS_EXTERNAL) -DSTB_IMAGE_WRITE_IMPLEMENTATION \
+stb_image_write-$(BINARY).o: stb_image_write.h
+	$(CXX) -c -x c++ -o $@ $< $(CXXFLAGS_EXTERNAL) -DSTB_IMAGE_WRITE_IMPLEMENTATION \
 		-UNDEBUG
 	@echo "[C++] $<"
 
-tinyexr-$(BINARY)$(EXT): tinyexr.h
-	@$(CXX) -c -x c++ -o $@ $< $(CXXFLAGS) -DTINYEXR_IMPLEMENTATION -UNDEBUG
+tinyexr-$(BINARY).o: tinyexr.h
+	$(CXX) -c -x c++ -o $@ $< $(CXXFLAGS) -DTINYEXR_IMPLEMENTATION -UNDEBUG
 	@echo "[C++] $<"
 
-$(CLI_OBJECTS): %-$(BINARY)$(EXT): %.cpp $(HEADERS) $(LIB_OBJECTS)
-	@$(CXX) -c -o $@ $(abspath $<) $(CXXFLAGS)
+$(CLI_OBJECTS): %-$(BINARY).o: %.cpp $(HEADERS) $(LIB_OBJECTS)
+	$(CXX) -c -o $@ $(abspath $<) $(CXXFLAGS)
 	@echo "[C++] $<"
 
-$(LIB_OBJECTS): %-$(BINARY)$(EXT): %.cpp $(HEADERS)
-	@$(CXX) -c -o $@ $(abspath $<) $(CXXFLAGS)
+$(LIB_OBJECTS): %-$(BINARY).o: %.cpp $(HEADERS)
+	$(CXX) -c -o $@ $(abspath $<) $(CXXFLAGS)
 	@echo "[C++] $<"
 
 # ==================================================
 # Generic utility rules
 
-library: $(LIBRARY)
+library: $(LIBRARY)$(EXT)
 
 clean:
-	@rm -f *-$(BINARY)$(EXT)
+	@rm -f $(LIBRARY).o
+	@rm -f $(LIBRARY).a
+	@rm -f *-$(BINARY).o
 	@rm -f *-$(BINARY).obj
 	@rm -f $(BINARY)
 	@rm -f $(BINARY).exe
